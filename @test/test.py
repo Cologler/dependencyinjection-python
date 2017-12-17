@@ -50,6 +50,10 @@ class Test(unittest.TestCase):
         self.assertTrue(provider.get(A) is provider.get(A))
         self.assertTrue(provider.get(B) is provider.get(B))
 
+        with provider.scope() as provider1:
+            self.assertTrue(provider.get(A) is provider1.get(A))
+            self.assertTrue(provider.get(B) is provider1.get(B))
+
     def test_scoped(self):
         tester = self
         class A:

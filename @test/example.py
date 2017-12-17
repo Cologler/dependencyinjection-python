@@ -26,10 +26,17 @@ def main(argv=None):
         import dependencyinjection as di
 
         service = di.Services()
-        service.singleton(A)
+        service.scoped(A)
         service.singleton(B)
         provider = service.build()
+        assert isinstance(provider.get(A), A)
         assert isinstance(provider.get(B), B)
+
+        with provider.scope() as scoped_provider:
+            assert provider.get(A) is provider.get(A)
+            assert scoped_provider.get(B) is scoped_provider.get(B)
+            assert provider.get(B) is scoped_provider.get(B)
+            assert not (provider.get(A) is scoped_provider.get(A))
     except Exception:
         traceback.print_exc()
         input()
