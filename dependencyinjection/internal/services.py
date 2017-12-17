@@ -14,6 +14,7 @@ from .validator import Validator
 from .servicesmap import ServicesMap
 from .lock import ThreadLock
 
+
 class Services:
     def __init__(self):
         self._services = []
@@ -72,3 +73,30 @@ class Services:
         self._services.append(ServiceProviderDescriptor())
         service_map = ServicesMap(self._services)
         return ServiceProvider(service_map=service_map)
+
+    @property
+    def decorator(self):
+        return Decorator(self)
+
+
+class Decorator:
+    def __init__(self, services: Services):
+        self._services = services
+
+    def singleton(self, service_type: type=None):
+        def func(obj):
+            self._services.singleton(service_type or obj, obj)
+            return obj
+        return func
+
+    def scoped(self, service_type: type=None):
+        def func(obj):
+            self._services.scoped(service_type or obj, obj)
+            return obj
+        return func
+
+    def transient(self, service_type: type=None):
+        def func(obj):
+            self._services.transient(service_type or obj, obj)
+            return obj
+        return func
