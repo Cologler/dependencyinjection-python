@@ -92,17 +92,18 @@ class ServiceProvider(IServiceProvider):
     def _resolve_by_descriptor(self, descriptor: Descriptor, depend_chain: CycleChecker):
         provider = self if descriptor.lifetime != LifeTime.singleton else self._root_provider
         if provider is self:
-            if descriptor in self._cache_list:
-                return self._cache_list[descriptor]
-            obj = descriptor.resolve(provider, depend_chain)
-            if not (obj is self):
-                if not (descriptor.service_type is IValidator):
-                    self.get(IValidator).verify(descriptor.service_type, obj)
-                if obj != None and hasattr(obj, '__enter__') and hasattr(obj, '__exit__'):
-                    self._exit_stack.enter_context(obj)
-            if descriptor.lifetime != LifeTime.transient: # cache other value
-                self._cache_list[descriptor] = obj
-            return obj
+            with self._lock:
+                if descriptor in self._cache_list:
+                    return self._cache_list[descriptor]
+                obj = descriptor.resolve(provider, depend_chain)
+                if not (obj is self):
+                    if not (descriptor.service_type is IValidator):
+                        self.get(IValidator).verify(descriptor.service_type, obj)
+                    if obj != None and hasattr(obj, '__enter__') and hasattr(obj, '__exit__'):
+                        self._exit_stack.enter_context(obj)
+                if descriptor.lifetime != LifeTime.transient: # cache other value
+                    self._cache_list[descriptor] = obj
+                return obj
         else:
             return provider._resolve_by_descriptor(descriptor, depend_chain)
 
