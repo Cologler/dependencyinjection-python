@@ -21,17 +21,6 @@ class Services:
         self.singleton(IValidator, Validator)
         self.singleton(ILock, FakeLock)
 
-    def bind(self, service_type: type, name: str):
-        '''
-        bind a parameter name for the type.
-        so we still can inject it when the callable does not has annotation.
-        '''
-        if not isinstance(service_type, type):
-            raise TypeError('service_type must be a type')
-        if not isinstance(name, str):
-            raise TypeError('name must be a str')
-        self._name_map[name] = service_type
-
     def add(self, service_type: type, obj: (callable, type), lifetime: LifeTime):
         ''' register a singleton type. '''
         if not isinstance(service_type, type):
