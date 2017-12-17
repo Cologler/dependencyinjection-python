@@ -21,9 +21,9 @@ class Services:
         self.singleton(IValidator, Validator)
         self.singleton(ILock, FakeLock)
 
-    def named(self, service_type: type, name: str):
+    def bind(self, service_type: type, name: str):
         '''
-        register a parameter name for the service type.
+        bind a parameter name for the type.
         so we still can inject it when the callable does not has annotation.
         '''
         if not isinstance(service_type, type):
@@ -46,8 +46,10 @@ class Services:
             raise ValueError
         return self
 
-    def singleton(self, service_type: type, obj: (callable, type)):
+    def singleton(self, service_type: type, obj: (callable, type)=None):
         ''' register a singleton type. '''
+        if obj is None:
+            obj = service_type
         return self.add(service_type, obj, LifeTime.singleton)
 
     def instance(self, service_type: type, obj):
@@ -57,12 +59,16 @@ class Services:
         self._services.append(InstanceDescriptor(service_type, obj))
         return self
 
-    def scoped(self, service_type: type, obj: (callable, type)):
+    def scoped(self, service_type: type, obj: (callable, type)=None):
         ''' register a scoped type. '''
+        if obj is None:
+            obj = service_type
         return self.add(service_type, obj, LifeTime.scoped)
 
-    def transient(self, service_type: type, obj: (callable, type)):
+    def transient(self, service_type: type, obj: (callable, type)=None):
         ''' register a transient type. '''
+        if obj is None:
+            obj = service_type
         return self.add(service_type, obj, LifeTime.transient)
 
     def threadsafety(self):

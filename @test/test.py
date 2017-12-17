@@ -154,6 +154,11 @@ class Test(unittest.TestCase):
         self.assertTrue(isinstance(items[0], A1))
         self.assertTrue(isinstance(items[1], A2))
 
+    def test_get_none(self):
+        service = di.Services()
+        provider = service.build()
+        self.assertIsNone(provider.get(str))
+
 
 def main(argv=None):
     if argv is None:

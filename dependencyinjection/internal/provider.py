@@ -64,21 +64,23 @@ class ServiceProvider(IServiceProvider):
                         ret.append(cache_copy.pop(0))
                     else:
                         ret.append(self._resolve_descriptor(d, CycleChecker()))
-                assert len(cache_copy) == 0
+                assert not cache_copy
                 return ret
         else:
-            return self._resolve(service_type, CycleChecker())
+            return self._resolve(service_type, CycleChecker(), False)
 
-    def _resolve(self, service_type: type, depend_chain: CycleChecker):
+    def _resolve(self, service_type: type, depend_chain: CycleChecker, require: bool=True):
         depend_chain.add_or_raise(service_type)
         try:
             descriptor = self._service_map.get(service_type)
             if descriptor is None:
-                raise TypeNotFoundError('type {} is not found in container.'.format(service_type))
-            obj = self._resolve_descriptor(descriptor, depend_chain)
-            if descriptor.lifetime != LifeTime.transient: # cache other value
-                self._cache[service_type] = obj
-            return obj
+                if require:
+                    raise TypeNotFoundError('type {} cannot resolve from container.'.format(service_type))
+            else:
+                obj = self._resolve_descriptor(descriptor, depend_chain)
+                if descriptor.lifetime != LifeTime.transient: # cache other value
+                    self._cache[service_type] = obj
+                return obj
         finally:
             depend_chain.remove_last()
 
