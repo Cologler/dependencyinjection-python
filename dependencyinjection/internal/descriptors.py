@@ -41,7 +41,6 @@ class Descriptor:
     def _resolve_params_map(self, params_map: dict, provider: IServiceProvider, depend_chain) -> dict:
         kwargs = {}
         if params_map:
-            type_resolver = None
             for k in params_map:
                 annotation = params_map[k]
                 kwargs[k] = provider._resolve(annotation, depend_chain)

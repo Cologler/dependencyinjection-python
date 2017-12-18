@@ -13,6 +13,7 @@ from .descriptors import Descriptor
 from .servicesmap import ServicesMap
 from .checker import CycleChecker
 from .errors import TypeNotFoundError
+from .service_resolver import IServiceResolver, ServiceResolver, ListedServiceResolver
 
 class ServiceProvider(IServiceProvider):
     def __init__(self, parent_provider: IServiceProvider=None, service_map: ServicesMap=None):
@@ -23,6 +24,8 @@ class ServiceProvider(IServiceProvider):
         self._service_map = service_map or parent_provider._service_map
         self._cache = {}
         self._cache_list = {}
+        self._service_resolvers: typing.Dict[type, IServiceResolver] = {}
+
         self._lock = FakeLock()
         if self._root_provider is self:
             self._lock = self.get(ILock)
@@ -33,6 +36,7 @@ class ServiceProvider(IServiceProvider):
     def __exit__(self, exc_type, exc_value, traceback):
         self._exit_stack.__exit__(exc_type, exc_value, traceback)
         self._cache.clear()
+        self._cache_list.clear()
 
     def get(self, service_type: type):
         if not isinstance(service_type, type):
@@ -40,22 +44,22 @@ class ServiceProvider(IServiceProvider):
         with self._lock:
             if service_type in self._cache:
                 return self._cache[service_type]
-            return self._get(service_type)
+            service_resolver = self._get_service_resolver(service_type)
+            return service_resolver.resolve(self)
 
-    def _get(self, service_type: type):
-        if getattr(service_type, '__origin__', None) is typing.List and isinstance(service_type.__args__, tuple):
-            ins_type = service_type.__args__[0]
-            return self._get_all(ins_type)
-        else:
-            return self._resolve(service_type, CycleChecker(), False)
-
-    def _get_all(self, service_type: type):
-        descriptors = self._service_map.getall(service_type)
-        ret = []
-        if descriptors:
-            for d in descriptors:
-                ret.append(self._resolve_by_descriptor(d, CycleChecker()))
-        return ret
+    def _get_service_resolver(self, service_type: type) -> IServiceResolver:
+        with self._lock:
+            resolver = self._service_resolvers.get(service_type)
+            if resolver is None:
+                if self is not self._root_provider:
+                    resolver = self._root_provider._get_service_resolver(service_type)
+                elif getattr(service_type, '__origin__', None) is typing.List and isinstance(service_type.__args__, tuple):
+                    inner_type = service_type.__args__[0]
+                    resolver = ListedServiceResolver(inner_type)
+                else:
+                    resolver = ServiceResolver(service_type)
+                self._service_resolvers[service_type] = resolver
+            return resolver
 
     def _resolve(self, service_type: type, depend_chain: CycleChecker, require: bool=True):
         if service_type in self._cache:
@@ -76,21 +80,21 @@ class ServiceProvider(IServiceProvider):
 
     def _resolve_by_descriptor(self, descriptor: Descriptor, depend_chain: CycleChecker):
         provider = self if descriptor.lifetime != LifeTime.singleton else self._root_provider
-        if provider is self:
-            with self._lock:
-                if descriptor in self._cache_list:
-                    return self._cache_list[descriptor]
+        with self._lock:
+            if descriptor in self._cache_list:
+                return self._cache_list[descriptor]
+            if provider is self:
                 obj = descriptor.create(provider, depend_chain)
                 if not (obj is self):
                     if not (descriptor.service_type is IValidator):
                         self.get(IValidator).verify(descriptor.service_type, obj)
-                    if obj != None and hasattr(obj, '__enter__') and hasattr(obj, '__exit__'):
+                    if obj is not None and hasattr(obj, '__enter__') and hasattr(obj, '__exit__'):
                         self._exit_stack.enter_context(obj)
-                if descriptor.lifetime != LifeTime.transient: # cache other value
-                    self._cache_list[descriptor] = obj
-                return obj
-        else:
-            return provider._resolve_by_descriptor(descriptor, depend_chain)
+            else:
+                obj = provider._resolve_by_descriptor(descriptor, depend_chain)
+            if descriptor.lifetime != LifeTime.transient: # cache other value
+                self._cache_list[descriptor] = obj
+            return obj
 
     def scope(self):
         return self.get(IScopedFactory).service_provider
