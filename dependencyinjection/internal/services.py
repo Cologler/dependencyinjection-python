@@ -113,6 +113,7 @@ class Services:
         if not isinstance(service_type, type):
             raise TypeError('service_type must be a type')
         self._name_map[parameter_name] = service_type
+        return self
 
     @property
     def decorator(self):
