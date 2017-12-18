@@ -15,6 +15,12 @@ from .checker import CycleChecker
 from .errors import TypeNotFoundError
 from .service_resolver import IServiceResolver, ServiceResolver, ListedServiceResolver
 
+INTERNAL_TYPES = set([
+    IServiceProvider,
+    IValidator,
+    ILock,
+])
+
 class ServiceProvider(IServiceProvider):
     def __init__(self, parent_provider: IServiceProvider=None, service_map: ServicesMap=None):
         self._root_provider = parent_provider._root_provider if parent_provider else self
@@ -85,9 +91,8 @@ class ServiceProvider(IServiceProvider):
                 return self._cache_list[descriptor]
             if provider is self:
                 obj = descriptor.create(provider, depend_chain)
-                if not (obj is self):
-                    if not (descriptor.service_type is IValidator):
-                        self.get(IValidator).verify(descriptor.service_type, obj)
+                if descriptor.service_type not in INTERNAL_TYPES:
+                    self.get(IValidator).verify(descriptor.service_type, obj)
                     if obj is not None and hasattr(obj, '__enter__') and hasattr(obj, '__exit__'):
                         self._exit_stack.enter_context(obj)
             else:
