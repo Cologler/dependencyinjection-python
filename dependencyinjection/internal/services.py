@@ -65,7 +65,7 @@ class Services:
         '''
         make all `LifeTime.singleton` service thread safety.
         '''
-        self.singleton(ILock, ThreadLock)
+        self.scoped(ILock, ThreadLock)
         return self
 
     def build(self) -> IServiceProvider:
@@ -83,20 +83,32 @@ class Decorator:
     def __init__(self, services: Services):
         self._services = services
 
+    def instance(self, service_type: type=None):
+        def func(obj):
+            self._services.instance(service_type or type(obj), obj)
+            return obj
+        return func
+
     def singleton(self, service_type: type=None):
         def func(obj):
+            if not isinstance(service_type or obj, type):
+                raise TypeError('service type canbe ignore only args is a type.')
             self._services.singleton(service_type or obj, obj)
             return obj
         return func
 
     def scoped(self, service_type: type=None):
         def func(obj):
+            if not isinstance(service_type or obj, type):
+                raise TypeError('service type canbe ignore only args is a type.')
             self._services.scoped(service_type or obj, obj)
             return obj
         return func
 
     def transient(self, service_type: type=None):
         def func(obj):
+            if not isinstance(service_type or obj, type):
+                raise TypeError('service type canbe ignore only args is a type.')
             self._services.transient(service_type or obj, obj)
             return obj
         return func
