@@ -163,6 +163,28 @@ class Test(unittest.TestCase):
         provider = service.build()
         self.assertIsNone(provider.get(str))
 
+    def test_bind(self):
+        tester = self
+
+        class A:
+            pass
+
+        class B:
+            def __init__(self, a):
+                tester.assertIsNotNone(a)
+                tester.assertTrue(isinstance(a, A))
+
+        service = di.Services()
+        service.scoped(A)
+        service.scoped(B)
+        provider1 = service.build()
+        with self.assertRaises(Exception):
+            self.assertTrue(isinstance(provider1.get(B), B))
+        self.assertTrue(isinstance(provider1.get(B), B))
+        service.bind('a', A) # after bind name to type.
+        provider2 = service.build()
+        self.assertTrue(isinstance(provider2.get(B), B))
+
 
 def main(argv=None):
     if argv is None:

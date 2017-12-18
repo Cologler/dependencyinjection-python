@@ -19,3 +19,7 @@ class CycleDependencyError(Exception):
 
 class TypeNotFoundError(Exception):
     pass
+
+
+class ParameterTypeResolveError(Exception):
+    pass

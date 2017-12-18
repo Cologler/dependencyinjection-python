@@ -22,7 +22,7 @@ class ServicesMap:
     def get(self, service_type: type) -> Descriptor:
         ls = self._type_map.get(service_type)
         if ls:
-            return ls[-1]
+            return ls[-1] # has one item at least.
 
     def getall(self, service_type: type) -> typing.List[Descriptor]:
         return self._type_map.get(service_type)

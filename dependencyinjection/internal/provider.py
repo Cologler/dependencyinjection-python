@@ -22,8 +22,8 @@ class ServiceProvider(IServiceProvider):
         self._exit_stack.__enter__()
         # if service_map is None, parent_provider must not None
         self._service_map = service_map or parent_provider._service_map
-        self._cache = {}
-        self._cache_list = {}
+        self._cache: typing.Dict[type, object] = {} # cached service_type to instance
+        self._cache_list: typing.Dict[Descriptor, object] = {} # cached descriptor to instance
         self._service_resolvers: typing.Dict[type, IServiceResolver] = {}
 
         self._lock = FakeLock()

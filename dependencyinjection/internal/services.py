@@ -6,10 +6,12 @@
 #
 # ----------
 
+import typing
 from .common import LifeTime, IValidator, IServiceProvider, IScopedFactory, ILock, FakeLock
 from .scopedfactory import ScopedFactory
 from .provider import ServiceProvider
 from .descriptors import (
+    Descriptor,
     CallableDescriptor,
     TypedDescriptor,
     InstanceDescriptor,
@@ -19,12 +21,13 @@ from .descriptors import (
 from .validator import Validator
 from .servicesmap import ServicesMap
 from .lock import ThreadLock
+from .param_type_resolver import ParameterTypeResolver
 
 
 class Services:
     def __init__(self):
-        self._services = []
-        self._name_map = {}
+        self._services: typing.List[Descriptor] = []
+        self._name_map: typing.Dict[str, type] = {}
         self.singleton(IValidator, Validator)
         self.singleton(ILock, FakeLock)
 
@@ -74,16 +77,6 @@ class Services:
         self.scoped(ILock, ThreadLock)
         return self
 
-    def build(self) -> IServiceProvider:
-        self.transient(IScopedFactory, ScopedFactory)
-        self._services.append(ServiceProviderDescriptor())
-        service_map = ServicesMap(self._services)
-        return ServiceProvider(service_map=service_map)
-
-    @property
-    def decorator(self):
-        return Decorator(self)
-
     def map(self, service_type: type, target_service_type: type):
         '''
         map a service type to another service type.
@@ -94,6 +87,28 @@ class Services:
             raise TypeError('target_service_type must be a type')
         self._services.append(MapDescriptor(service_type, target_service_type))
         return self
+
+    def bind(self, parameter_name: str, service_type: type):
+        '''
+        bind a parameter name to service type.
+        so we can resolve parameter type when function does not has annotation.
+        '''
+        if not isinstance(parameter_name, str):
+            raise TypeError('parameter_name must be a str')
+        if not isinstance(service_type, type):
+            raise TypeError('service_type must be a type')
+        self._name_map[parameter_name] = service_type
+
+    @property
+    def decorator(self):
+        return Decorator(self)
+
+    def build(self) -> IServiceProvider:
+        self.instance(ParameterTypeResolver, ParameterTypeResolver(self._name_map))
+        self.transient(IScopedFactory, ScopedFactory)
+        self._services.append(ServiceProviderDescriptor())
+        service_map = ServicesMap(self._services)
+        return ServiceProvider(service_map=service_map)
 
 
 class Decorator:

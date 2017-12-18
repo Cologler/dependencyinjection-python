@@ -9,6 +9,8 @@
 import typing
 import inspect
 from .common import LifeTime, IServiceProvider
+from .param_type_resolver import ParameterTypeResolver
+from .errors import ParameterTypeResolveError
 
 class Descriptor:
     def __init__(self, service_type: type, lifetime: LifeTime):
@@ -26,24 +28,21 @@ class Descriptor:
     def create(self, provider: IServiceProvider, depend_chain) -> object:
         raise NotImplementedError
 
-    def _build_params_map(self, params: list) -> dict:
+    def _build_params_type_map(self, params: list, provider: IServiceProvider) -> dict:
         table = {}
-        for param in params:
-            assert isinstance(param, inspect.Parameter)
-            if param.kind is param.POSITIONAL_OR_KEYWORD:
-                if not isinstance(param.annotation, type):
-                    raise TypeError
-                if param.annotation is inspect.Parameter.empty:
-                    raise TypeError
-                table[param.name] = param.annotation
+        params = [p for p in params if p.kind is p.POSITIONAL_OR_KEYWORD]
+        if params:
+            type_resolver: ParameterTypeResolver = provider.get(ParameterTypeResolver)
+            for param in params:
+                table[param.name] = type_resolver.resolve(param)
         return table
 
-    def _resolve_params_map(self, params_map: dict, provider: IServiceProvider, depend_chain) -> dict:
+    def _resolve_params_map(self, params_type_map: dict, provider: IServiceProvider, depend_chain) -> dict:
         kwargs = {}
-        if params_map:
-            for k in params_map:
-                annotation = params_map[k]
-                kwargs[k] = provider._resolve(annotation, depend_chain)
+        if params_type_map:
+            for k in params_type_map:
+                t = params_type_map[k]
+                kwargs[k] = provider._resolve(t, depend_chain)
         return kwargs
 
 
@@ -52,11 +51,13 @@ class CallableDescriptor(Descriptor):
         super().__init__(service_type, lifetime)
         self._func = func
         signature = inspect.signature(func)
-        params = list(signature.parameters.values())
-        self._params_map = self._build_params_map(params)
+        self._params = list(signature.parameters.values())
+        self._params_type_map = None
 
     def create(self, provider: IServiceProvider, depend_chain) -> object:
-        kwargs = self._resolve_params_map(self._params_map, provider, depend_chain)
+        if self._params_type_map is None:
+            self._params_type_map = self._build_params_type_map(self._params, provider)
+        kwargs = self._resolve_params_map(self._params_type_map, provider, depend_chain)
         return self._func(**kwargs)
 
 
@@ -65,11 +66,17 @@ class TypedDescriptor(Descriptor):
         super().__init__(service_type, lifetime)
         self._impl_type = impl_type
         signature = inspect.signature(impl_type.__init__)
-        params = list(signature.parameters.values())
-        self._params_map = self._build_params_map(params[1:]) # ignore `self`
+        self._params = list(signature.parameters.values())[1:] # ignore `self`
+        self._params_type_map = None
 
     def create(self, provider: IServiceProvider, depend_chain) -> object:
-        kwargs = self._resolve_params_map(self._params_map, provider, depend_chain)
+        if self._params_type_map is None:
+            try:
+                self._params_type_map = self._build_params_type_map(self._params, provider)
+            except ParameterTypeResolveError as err:
+                msg = 'error on creating type {}: {}'.format(self._impl_type, err)
+                raise ParameterTypeResolveError(msg)
+        kwargs = self._resolve_params_map(self._params_type_map, provider, depend_chain)
         return self._impl_type(**kwargs)
 
 

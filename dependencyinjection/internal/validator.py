@@ -12,4 +12,4 @@ from .errors import InvalidError
 class Validator(IValidator):
     def verify(self, service_type: type, obj):
         if not isinstance(obj, service_type):
-            raise InvalidError
+            raise InvalidError('{} is not a {}'.format(obj, service_type))
