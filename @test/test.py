@@ -180,7 +180,6 @@ class Test(unittest.TestCase):
         provider1 = service.build()
         with self.assertRaises(Exception):
             self.assertTrue(isinstance(provider1.get(B), B))
-        self.assertTrue(isinstance(provider1.get(B), B))
         service.bind('a', A) # after bind name to type.
         provider2 = service.build()
         self.assertTrue(isinstance(provider2.get(B), B))
