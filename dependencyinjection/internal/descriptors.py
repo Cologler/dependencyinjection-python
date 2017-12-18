@@ -41,6 +41,7 @@ class Descriptor:
     def _resolve_params_map(self, params_map: dict, provider: IServiceProvider, depend_chain) -> dict:
         kwargs = {}
         if params_map:
+            type_resolver = None
             for k in params_map:
                 annotation = params_map[k]
                 kwargs[k] = provider._resolve(annotation, depend_chain)
@@ -88,3 +89,12 @@ class ServiceProviderDescriptor(Descriptor):
 
     def create(self, provider: IServiceProvider, depend_chain: set) -> object:
         return provider
+
+
+class MapDescriptor(Descriptor):
+    def __init__(self, service_type: type, target_service_type: type):
+        super().__init__(service_type, LifeTime.transient)
+        self._target = target_service_type
+
+    def create(self, provider: IServiceProvider, depend_chain: set) -> object:
+        return provider.get(self._target)

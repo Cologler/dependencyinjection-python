@@ -9,7 +9,13 @@
 from .common import LifeTime, IValidator, IServiceProvider, IScopedFactory, ILock, FakeLock
 from .scopedfactory import ScopedFactory
 from .provider import ServiceProvider
-from .descriptors import CallableDescriptor, TypedDescriptor, InstanceDescriptor, ServiceProviderDescriptor
+from .descriptors import (
+    CallableDescriptor,
+    TypedDescriptor,
+    InstanceDescriptor,
+    ServiceProviderDescriptor,
+    MapDescriptor
+)
 from .validator import Validator
 from .servicesmap import ServicesMap
 from .lock import ThreadLock
@@ -77,6 +83,17 @@ class Services:
     @property
     def decorator(self):
         return Decorator(self)
+
+    def map(self, service_type: type, target_service_type: type):
+        '''
+        map a service type to another service type.
+        '''
+        if not isinstance(service_type, type):
+            raise TypeError('service_type must be a type')
+        if not isinstance(target_service_type, type):
+            raise TypeError('target_service_type must be a type')
+        self._services.append(MapDescriptor(service_type, target_service_type))
+        return self
 
 
 class Decorator:
