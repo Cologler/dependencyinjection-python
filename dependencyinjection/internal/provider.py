@@ -51,26 +51,11 @@ class ServiceProvider(IServiceProvider):
 
     def _get_all(self, service_type: type):
         descriptors = self._service_map.getall(service_type)
-        if descriptors is None:
-            return [] # always return new instance.
-        else:
-            cache = self._cache_list.get(service_type) # cached
-            if cache is None:
-                cache = []
-                for d in [d for d in descriptors[:-1] if d.lifetime != LifeTime.transient]:
-                    cache.append(self._resolve_by_descriptor(d, CycleChecker()))
-                if descriptors[-1].lifetime != LifeTime.transient:
-                    cache.append(self.get(service_type))
-                self._cache_list[service_type] = cache
-            cache_copy = cache.copy()
-            ret = []
+        ret = []
+        if descriptors:
             for d in descriptors:
-                if d.lifetime != LifeTime.transient:
-                    ret.append(cache_copy.pop(0))
-                else:
-                    ret.append(self._resolve_by_descriptor(d, CycleChecker()))
-            assert not cache_copy
-            return ret
+                ret.append(self._resolve_by_descriptor(d, CycleChecker()))
+        return ret
 
     def _resolve(self, service_type: type, depend_chain: CycleChecker, require: bool=True):
         if service_type in self._cache:
@@ -95,7 +80,7 @@ class ServiceProvider(IServiceProvider):
             with self._lock:
                 if descriptor in self._cache_list:
                     return self._cache_list[descriptor]
-                obj = descriptor.resolve(provider, depend_chain)
+                obj = descriptor.create(provider, depend_chain)
                 if not (obj is self):
                     if not (descriptor.service_type is IValidator):
                         self.get(IValidator).verify(descriptor.service_type, obj)

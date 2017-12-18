@@ -23,7 +23,7 @@ class Descriptor:
     def lifetime(self):
         return self._lifetime
 
-    def resolve(self, provider: IServiceProvider, depend_chain) -> object:
+    def create(self, provider: IServiceProvider, depend_chain) -> object:
         raise NotImplementedError
 
     def _build_params_map(self, params: list) -> dict:
@@ -54,7 +54,7 @@ class CallableDescriptor(Descriptor):
         params = list(signature.parameters.values())
         self._params_map = self._build_params_map(params)
 
-    def resolve(self, provider: IServiceProvider, depend_chain) -> object:
+    def create(self, provider: IServiceProvider, depend_chain) -> object:
         kwargs = self._resolve_params_map(self._params_map, provider, depend_chain)
         return self._func(**kwargs)
 
@@ -67,7 +67,7 @@ class TypedDescriptor(Descriptor):
         params = list(signature.parameters.values())
         self._params_map = self._build_params_map(params[1:]) # ignore `self`
 
-    def resolve(self, provider: IServiceProvider, depend_chain) -> object:
+    def create(self, provider: IServiceProvider, depend_chain) -> object:
         kwargs = self._resolve_params_map(self._params_map, provider, depend_chain)
         return self._impl_type(**kwargs)
 
@@ -77,7 +77,7 @@ class InstanceDescriptor(Descriptor):
         super().__init__(service_type, LifeTime.singleton)
         self._instance = instance
 
-    def resolve(self, provider: IServiceProvider, depend_chain: set) -> object:
+    def create(self, provider: IServiceProvider, depend_chain: set) -> object:
         return self._instance
 
 
@@ -85,5 +85,5 @@ class ServiceProviderDescriptor(Descriptor):
     def __init__(self):
         super().__init__(IServiceProvider, LifeTime.scoped)
 
-    def resolve(self, provider: IServiceProvider, depend_chain: set) -> object:
+    def create(self, provider: IServiceProvider, depend_chain: set) -> object:
         return provider
