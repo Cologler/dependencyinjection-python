@@ -9,7 +9,7 @@
 import os
 from setuptools import setup, find_packages
 
-VERSION = '0.1.0.1'
+VERSION = '0.1.0.2'
 DESCRIPTION = ''
 
 long_description = None
@@ -33,7 +33,7 @@ setup(
     license = 'MIT',
     packages = find_packages(),
     include_package_data = True,
-    zip_safe = True,
+    zip_safe = False,
     install_requires = [ 'overload' ],
     entry_points = {},
 )
