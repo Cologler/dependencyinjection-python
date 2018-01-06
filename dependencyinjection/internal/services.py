@@ -14,7 +14,6 @@ from .provider import ServiceProvider
 from .descriptors import (
     Descriptor,
     CallableDescriptor,
-    TypedDescriptor,
     InstanceDescriptor,
     ServiceProviderDescriptor,
     MapDescriptor
@@ -38,9 +37,7 @@ class Services:
             raise TypeError('service_type must be a type')
         if not isinstance(lifetime, LifeTime):
             raise TypeError
-        if isinstance(obj, type):
-            self._services.append(TypedDescriptor(service_type, obj, lifetime))
-        elif callable(obj):
+        if callable(obj):
             self._services.append(CallableDescriptor(service_type, obj, lifetime))
         else:
             raise ValueError
@@ -59,7 +56,7 @@ class Services:
         return self.instance(type(obj), obj)
 
     @overload
-    def singleton(self, service_type: type, obj: (callable, type)):
+    def singleton(self, service_type: type, obj: callable):
         ''' register a singleton type. '''
         return self.add(service_type, obj, LifeTime.singleton)
 
