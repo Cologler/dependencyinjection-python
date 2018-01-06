@@ -6,9 +6,11 @@
 #
 # ----------
 
+from .internal.common import IServiceProvider
 from .internal.services import Services
 
 
 __all__ = [
-    'Services'
+    'Services',
+    'IServiceProvider'
 ]

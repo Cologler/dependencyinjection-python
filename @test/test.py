@@ -11,7 +11,7 @@ import sys
 import traceback
 import unittest
 
-sys.path.append('..')
+sys.path.insert(0, '..')
 
 import dependencyinjection as di
 
@@ -183,6 +183,19 @@ class Test(unittest.TestCase):
         service.bind('a', A) # after bind name to type.
         provider2 = service.build()
         self.assertTrue(isinstance(provider2.get(B), B))
+
+    def test_service_provider(self):
+        tester = self
+
+        class A:
+            def __init__(self, injected_provider: di.IServiceProvider):
+                self.injected_provider = injected_provider
+
+
+        service = di.Services()
+        service.scoped(A)
+        provider = service.build()
+        tester.assertIs(provider.get(A).injected_provider, provider)
 
 
 def main(argv=None):
