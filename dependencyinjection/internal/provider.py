@@ -8,7 +8,7 @@
 
 import contextlib
 import typing
-from .common import IServiceProvider, IValidator, IScopedFactory, LifeTime, FakeLock, ILock
+from .common import IServiceProvider, IValidator, IScopedFactory, LifeTime, ILock, FAKE_LOCK
 from .descriptors import Descriptor
 from .servicesmap import ServicesMap
 from .checker import CycleChecker
@@ -32,7 +32,7 @@ class ServiceProvider(IServiceProvider):
         self._cache_list: typing.Dict[Descriptor, object] = {} # cached descriptor to instance
         self._service_resolvers: typing.Dict[type, IServiceResolver] = {}
 
-        self._lock = FakeLock()
+        self._lock = FAKE_LOCK
         if self._root_provider is self:
             self._lock = self.get(ILock)
 

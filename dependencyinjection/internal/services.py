@@ -8,7 +8,11 @@
 
 import typing
 from overload import overload
-from .common import LifeTime, IValidator, IServiceProvider, IScopedFactory, ILock, FakeLock
+from .common import (
+    LifeTime,
+    IValidator, IServiceProvider, IScopedFactory, ILock,
+    FAKE_LOCK
+)
 from .scopedfactory import ScopedFactory
 from .provider import ServiceProvider
 from .descriptors import (
@@ -29,7 +33,7 @@ class Services:
         self._services: typing.List[Descriptor] = []
         self._name_map: typing.Dict[str, type] = {}
         self.singleton(IValidator, Validator)
-        self.singleton(ILock, FakeLock)
+        self.instance(ILock, FAKE_LOCK)
 
     def add(self, service_type: type, obj: (callable, type), lifetime: LifeTime):
         ''' register a singleton type. '''

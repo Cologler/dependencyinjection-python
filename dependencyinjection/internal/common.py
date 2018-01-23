@@ -6,6 +6,7 @@
 #
 # ----------
 
+from abc import abstractmethod
 from enum import Enum
 
 class LifeTime(Enum):
@@ -46,9 +47,13 @@ class IScopedFactory:
 
 
 class ILock:
+    ''' the lock use for scoped service provider. '''
+
+    @abstractmethod
     def __enter__(self):
         raise NotImplementedError
 
+    @abstractmethod
     def __exit__(self, exc_type, exc_value, traceback):
         raise NotImplementedError
 
@@ -59,3 +64,5 @@ class FakeLock(ILock):
 
     def __exit__(self, exc_type, exc_value, traceback):
         pass
+
+FAKE_LOCK = FakeLock()
