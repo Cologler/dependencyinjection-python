@@ -8,12 +8,18 @@
 
 import contextlib
 import typing
-from .common import IServiceProvider, IValidator, IScopedFactory, LifeTime, ILock, FAKE_LOCK
-from .descriptors import Descriptor
+from .common import (
+    IServiceProvider,
+    IValidator,
+    IScopedFactory,
+    ILock,
+    FAKE_LOCK
+)
+from .descriptors import ListedDescriptor, ICallSiteMaker
 from .servicesmap import ServicesMap
 from .checker import CycleChecker
 from .errors import TypeNotFoundError
-from .service_resolver import IServiceResolver, ServiceResolver, ListedServiceResolver
+from .callsites import LifeTimeCallSite
 
 INTERNAL_TYPES = set([
     IServiceProvider,
@@ -21,16 +27,17 @@ INTERNAL_TYPES = set([
     ILock,
 ])
 
+
 class ServiceProvider(IServiceProvider):
     def __init__(self, parent_provider: IServiceProvider=None, service_map: ServicesMap=None):
         self._root_provider = parent_provider._root_provider if parent_provider else self
         self._exit_stack = contextlib.ExitStack()
         self._exit_stack.__enter__()
+
         # if service_map is None, parent_provider must not None
         self._service_map = service_map or parent_provider._service_map
-        self._cache: typing.Dict[type, object] = {} # cached service_type to instance
-        self._cache_list: typing.Dict[Descriptor, object] = {} # cached descriptor to instance
-        self._service_resolvers: typing.Dict[type, IServiceResolver] = {}
+        self._cache_list: typing.Dict[object, object] = {} # cached descriptor to instance
+        self._callsites = {}
 
         self._lock = FAKE_LOCK
         if self._root_provider is self:
@@ -41,65 +48,65 @@ class ServiceProvider(IServiceProvider):
 
     def __exit__(self, exc_type, exc_value, traceback):
         self._exit_stack.__exit__(exc_type, exc_value, traceback)
-        self._cache.clear()
         self._cache_list.clear()
+
+    @property
+    def root_provider(self):
+        return self._root_provider
 
     def get(self, service_type: type):
         if not isinstance(service_type, type):
             raise TypeError
-        with self._lock:
-            if service_type in self._cache:
-                return self._cache[service_type]
-            service_resolver = self._get_service_resolver(service_type)
-            return service_resolver.resolve(self)
+        callsite = self.get_callsite(service_type, CycleChecker(), required=False)
+        if callsite:
+            return callsite.get(self)
 
-    def _get_service_resolver(self, service_type: type) -> IServiceResolver:
+    def get_callsite(self, target: (type, ICallSiteMaker), depend_chain: CycleChecker, *, required=True):
+        ''' get or create callsite. '''
+        assert target is not None
+
         with self._lock:
-            resolver = self._service_resolvers.get(service_type)
-            if resolver is None:
+            callsite = self._callsites.get(target)
+            if callsite is None:
                 if self is not self._root_provider:
-                    resolver = self._root_provider._get_service_resolver(service_type)
-                elif getattr(service_type, '__origin__', None) is typing.List and isinstance(service_type.__args__, tuple):
-                    inner_type = service_type.__args__[0]
-                    resolver = ListedServiceResolver(inner_type)
+                    callsite = self._root_provider.get_callsite(target, depend_chain)
+                elif isinstance(target, type):
+                    callsite = self._get_callsite_from_service_type(target, depend_chain, required=required)
                 else:
-                    resolver = ServiceResolver(service_type)
-                self._service_resolvers[service_type] = resolver
-            return resolver
+                    callsite = self._get_callsite_from_descriptor(target, depend_chain)
+                self._callsites[target] = callsite
+            return callsite
 
-    def _resolve(self, service_type: type, depend_chain: CycleChecker, require: bool=True):
-        if service_type in self._cache:
-            return self._cache[service_type]
-        depend_chain.add_or_raise(service_type)
-        try:
-            descriptor = self._service_map.get(service_type)
-            if descriptor is None:
-                if require:
-                    raise TypeNotFoundError('type {} cannot resolve from container.'.format(service_type))
-            else:
-                obj = self._resolve_by_descriptor(descriptor, depend_chain)
-                if descriptor.lifetime != LifeTime.transient: # cache other value
-                    self._cache[service_type] = obj
-                return obj
-        finally:
-            depend_chain.remove_last()
+    def _get_callsite_from_service_type(self, service_type, depend_chain, *, required):
+        descriptor = self._service_map.get(service_type)
 
-    def _resolve_by_descriptor(self, descriptor: Descriptor, depend_chain: CycleChecker):
-        provider = self if descriptor.lifetime != LifeTime.singleton else self._root_provider
+        if descriptor:
+            return self.get_callsite(descriptor, depend_chain)
+
+        elif getattr(service_type, '__origin__', None) is typing.List and isinstance(service_type.__args__, tuple):
+            inner_type, = service_type.__args__
+            descriptors = self._service_map.getall(inner_type) or []
+            return self.get_callsite(ListedDescriptor(descriptors), depend_chain)
+
+        elif required:
+            raise TypeNotFoundError(f'cannot get type: {service_type}')
+
+        return None
+
+    def _get_callsite_from_descriptor(self, descriptor, depend_chain):
+        return self.make_callsite(descriptor, depend_chain, from_type=not isinstance(descriptor, ListedDescriptor))
+
+    def make_callsite(self, descriptor, depend_chain: CycleChecker, *, from_type=True):
+        if self is not self._root_provider:
+            return self._root_provider.make_callsite(descriptor, depend_chain)
+
+        # root provider
         with self._lock:
-            if descriptor in self._cache_list:
-                return self._cache_list[descriptor]
-            if provider is self:
-                obj = descriptor.create(provider, depend_chain)
-                if descriptor.service_type not in INTERNAL_TYPES:
-                    self.get(IValidator).verify(descriptor.service_type, obj)
-                    if obj is not None and hasattr(obj, '__enter__') and hasattr(obj, '__exit__'):
-                        self._exit_stack.enter_context(obj)
-            else:
-                obj = provider._resolve_by_descriptor(descriptor, depend_chain)
-            if descriptor.lifetime != LifeTime.transient: # cache other value
-                self._cache_list[descriptor] = obj
-            return obj
+            context = depend_chain.add_or_raise(descriptor.service_type) if from_type else FAKE_LOCK
+            with context:
+                callsite = descriptor.make_callsite(self, depend_chain)
+                callsite = LifeTimeCallSite.wrap(descriptor, callsite)
+                return callsite
 
     def scope(self):
         return self.get(IScopedFactory).service_provider

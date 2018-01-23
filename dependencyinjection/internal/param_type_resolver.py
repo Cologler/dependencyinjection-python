@@ -16,16 +16,17 @@ class ParameterTypeResolver:
     def __init__(self, name_map: typing.Dict[str, type]):
         self._name_map = name_map.copy()
 
-    def resolve(self, parameter: inspect.Parameter):
+    def resolve(self, parameter: inspect.Parameter, allow_none):
         if parameter.annotation is inspect.Parameter.empty:
-            t = self._name_map.get(parameter.name)
-            if t is None:
-                msg = "cannot resolve parameter type by name: '{}'".format(parameter.name)
+            typ = self._name_map.get(parameter.name)
+            if typ is None:
+                msg = "cannot resolve parameter type from name: '{}'".format(parameter.name)
                 raise ParameterTypeResolveError(msg)
-            return t
+            return typ
+
         elif isinstance(parameter.annotation, type):
             return parameter.annotation
-        else:
+
+        elif not allow_none:
             msg = 'cannot parse type from annotation: {}'.format(parameter.annotation)
             raise ParameterTypeResolveError(msg)
-

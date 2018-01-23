@@ -6,8 +6,9 @@
 #
 # ----------
 
-from abc import abstractmethod
+from abc import abstractmethod, abstractproperty
 from enum import Enum
+
 
 class LifeTime(Enum):
     singleton = 0
@@ -32,6 +33,24 @@ class IServiceProvider:
             obj = service_provider.get(?)
         ```
         '''
+        raise NotImplementedError
+
+
+class ICallSiteMaker:
+    @abstractmethod
+    def make_callsite(self, service_provider: IServiceProvider, depend_chain):
+        '''create a callsite.'''
+        raise NotImplementedError
+
+
+class IDescriptor(ICallSiteMaker):
+
+    @abstractproperty
+    def service_type(self) -> type:
+        raise NotImplementedError
+
+    @abstractproperty
+    def lifetime(self) -> LifeTime:
         raise NotImplementedError
 
 

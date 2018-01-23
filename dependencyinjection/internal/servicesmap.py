@@ -20,9 +20,11 @@ class ServicesMap:
             ls.append(service)
 
     def get(self, service_type: type) -> Descriptor:
+        '''return None is not found.'''
         ls = self._type_map.get(service_type)
         if ls:
             return ls[-1] # has one item at least.
 
     def getall(self, service_type: type) -> typing.List[Descriptor]:
+        '''return None is not found.'''
         return self._type_map.get(service_type)
