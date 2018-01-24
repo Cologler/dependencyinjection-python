@@ -197,6 +197,20 @@ class Test(unittest.TestCase):
         provider = service.build()
         tester.assertIs(provider.get(A).injected_provider, provider)
 
+    def test_map(self):
+        class A:
+            pass
+        class B(A):
+            pass
+        class C(B):
+            pass
+
+        provider = di.Services().scoped(C).scoped(B).map(A, C).build()
+        # define twice, so C and B is not the same thing.
+        self.assertIsNot(provider[C], provider[B])
+        # with `map`, so A is C.
+        self.assertIs(provider[C], provider[A])
+
 
 def main(argv=None):
     if argv is None:

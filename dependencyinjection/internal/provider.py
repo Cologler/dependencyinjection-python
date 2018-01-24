@@ -30,7 +30,7 @@ INTERNAL_TYPES = set([
 
 class ServiceProvider(IServiceProvider):
     def __init__(self, parent_provider: IServiceProvider=None, service_map: ServicesMap=None):
-        self._root_provider = parent_provider._root_provider if parent_provider else self
+        self._root_provider = parent_provider.root_provider if parent_provider else self
         self._exit_stack = contextlib.ExitStack()
         self._exit_stack.__enter__()
 
@@ -54,10 +54,16 @@ class ServiceProvider(IServiceProvider):
     def root_provider(self):
         return self._root_provider
 
+    def __getitem__(self, service_type: type):
+        return self._get(service_type, True)
+
     def get(self, service_type: type):
+        return self._get(service_type, False)
+
+    def _get(self, service_type: type, required):
         if not isinstance(service_type, type):
             raise TypeError
-        callsite = self.get_callsite(service_type, CycleChecker(), required=False)
+        callsite = self.get_callsite(service_type, None, required=required)
         if callsite:
             return callsite.get(self)
 
@@ -102,6 +108,9 @@ class ServiceProvider(IServiceProvider):
 
         # root provider
         with self._lock:
+            if depend_chain is None:
+                depend_chain = CycleChecker()
+
             context = depend_chain.add_or_raise(descriptor.service_type) if from_type else FAKE_LOCK
             with context:
                 callsite = descriptor.make_callsite(self, depend_chain)

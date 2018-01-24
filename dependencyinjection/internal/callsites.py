@@ -67,7 +67,7 @@ class ScopedCallSite(LifeTimeCallSite):
 
 
 class NoLifeTimeCallSite(BaseCallSite):
-    ''' the callsite does not need wraped into `LifeTimeCallSite`.'''
+    ''' the callsite does not need to wraped into `LifeTimeCallSite`.'''
     pass
 
 

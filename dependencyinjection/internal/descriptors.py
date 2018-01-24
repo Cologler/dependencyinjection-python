@@ -38,42 +38,8 @@ class CallableDescriptor(Descriptor):
         self._func = func
         self._params_type_map = None
 
-    def _build_params_table(self, provider: IServiceProvider) -> dict:
-        if self._params_type_map is not None:
-            return
-
-        def new_table():
-            table = {}
-            signature = inspect.signature(self._func)
-            params = list(signature.parameters.values())
-            params = [p for p in params if p.kind is p.POSITIONAL_OR_KEYWORD]
-            if params:
-                type_resolver: ParameterTypeResolver = provider.get(ParameterTypeResolver)
-                for param in params:
-                    table[param.name] = type_resolver.resolve(param)
-            return table
-
-        try:
-            self._params_type_map = new_table()
-        except ParameterTypeResolveError as err:
-            if isinstance(self._func, type):
-                msg = 'error on creating type {}: {}'.format(self._func, err)
-            else:
-                msg = 'error on invoke facrory {}: {}'.format(self._func, err)
-            raise ParameterTypeResolveError(msg)
-
-    def _resolve_args(self, provider: IServiceProvider, depend_chain) -> dict:
-        kwargs = {}
-        if self._params_type_map:
-            for k in self._params_type_map:
-                t = self._params_type_map[k]
-                kwargs[k] = provider._resolve(t, depend_chain)
-        return kwargs
-
-    def create(self, provider: IServiceProvider, depend_chain) -> object:
-        self._build_params_table(provider)
-        kwargs = self._resolve_args(provider, depend_chain)
-        return self._func(**kwargs)
+        if service_type is ParameterTypeResolver:
+            raise RuntimeError(f'service_type cannot be {ParameterTypeResolver}.')
 
     def make_callsite(self, service_provider, depend_chain):
         param_callsites = {}
@@ -86,7 +52,14 @@ class CallableDescriptor(Descriptor):
             for param in params:
                 callsite = None
                 if param.default is param.empty:
-                    param_type = type_resolver.resolve(param, False)
+                    try:
+                        param_type = type_resolver.resolve(param, False)
+                    except ParameterTypeResolveError as err:
+                        if isinstance(self._func, type):
+                            msg = f'error on creating type {self._func}: {err}'
+                        else:
+                            msg = f'error on invoke facrory {self._func}: {err}'
+                        raise ParameterTypeResolveError(msg)
                     callsite = service_provider.get_callsite(param_type, depend_chain)
                 else:
                     param_type = type_resolver.resolve(param, True)
