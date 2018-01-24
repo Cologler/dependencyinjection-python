@@ -54,11 +54,6 @@ class IDescriptor(ICallSiteMaker):
         raise NotImplementedError
 
 
-class IValidator:
-    def verify(self, service_type: type, obj):
-        raise NotImplementedError
-
-
 class IScopedFactory:
     @property
     def service_provider(self):

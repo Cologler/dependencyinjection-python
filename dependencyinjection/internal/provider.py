@@ -10,7 +10,6 @@ import contextlib
 import typing
 from .common import (
     IServiceProvider,
-    IValidator,
     IScopedFactory,
     ILock,
     FAKE_LOCK
@@ -23,7 +22,6 @@ from .callsites import LifeTimeCallSite
 
 INTERNAL_TYPES = set([
     IServiceProvider,
-    IValidator,
     ILock,
 ])
 

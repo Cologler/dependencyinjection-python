@@ -10,7 +10,7 @@ import typing
 from overload import overload
 from .common import (
     LifeTime,
-    IValidator, IServiceProvider, IScopedFactory, ILock,
+    IServiceProvider, IScopedFactory, ILock,
     FAKE_LOCK
 )
 from .scopedfactory import ScopedFactory
@@ -22,7 +22,6 @@ from .descriptors import (
     ServiceProviderDescriptor,
     MapDescriptor
 )
-from .validator import Validator
 from .servicesmap import ServicesMap
 from .lock import ThreadLock
 from .param_type_resolver import ParameterTypeResolver
@@ -32,7 +31,6 @@ class Services:
     def __init__(self):
         self._services: typing.List[Descriptor] = []
         self._name_map: typing.Dict[str, type] = {}
-        self.singleton(IValidator, Validator)
         self.instance(ILock, FAKE_LOCK)
 
     def add(self, service_type: type, obj: (callable, type), lifetime: LifeTime):
