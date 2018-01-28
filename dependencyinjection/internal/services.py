@@ -33,25 +33,18 @@ class Services:
         self._name_map: typing.Dict[str, type] = {}
         self.instance(ILock, FAKE_LOCK)
 
+    def _add_descriptor(self, descriptor):
+        self._services.append(descriptor)
+        return self
+
     def add(self, service_type: type, obj: (callable, type), lifetime: LifeTime):
         ''' register a singleton type. '''
-        if not isinstance(service_type, type):
-            raise TypeError('service_type must be a type')
-        if not isinstance(lifetime, LifeTime):
-            raise TypeError
-        if callable(obj):
-            self._services.append(CallableDescriptor(service_type, obj, lifetime))
-        else:
-            raise ValueError
-        return self
+        return self._add_descriptor(CallableDescriptor(service_type, obj, lifetime))
 
     @overload
     def instance(self, service_type: type, obj: object):
         ''' register a singleton instance to service type. '''
-        if not isinstance(obj, service_type):
-            raise TypeError('obj must be {} type'.format(service_type))
-        self._services.append(InstanceDescriptor(service_type, obj))
-        return self
+        return self._add_descriptor(InstanceDescriptor(service_type, obj))
 
     @instance.add
     def instance(self, obj: object):
@@ -88,19 +81,13 @@ class Services:
         '''
         make all `LifeTime.singleton` service thread safety.
         '''
-        self.scoped(ILock, ThreadLock)
-        return self
+        return self.scoped(ILock, ThreadLock)
 
     def map(self, service_type: type, target_service_type: type):
         '''
         map a service type to another service type.
         '''
-        if not isinstance(service_type, type):
-            raise TypeError('service_type must be a type')
-        if not isinstance(target_service_type, type):
-            raise TypeError('target_service_type must be a type')
-        self._services.append(MapDescriptor(service_type, target_service_type))
-        return self
+        return self._add_descriptor(MapDescriptor(service_type, target_service_type))
 
     def bind(self, parameter_name: str, service_type: type):
         '''

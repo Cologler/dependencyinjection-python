@@ -20,6 +20,11 @@ from .callsites import (
 
 class Descriptor(IDescriptor):
     def __init__(self, service_type: type, lifetime: LifeTime):
+        if not isinstance(service_type, type):
+            raise TypeError('service_type must be a type')
+        if not isinstance(lifetime, LifeTime):
+            raise TypeError('lifetime must be a LifeTime')
+
         self._service_type = service_type
         self._lifetime = lifetime
 
@@ -35,6 +40,9 @@ class Descriptor(IDescriptor):
 class CallableDescriptor(Descriptor):
     def __init__(self, service_type: type, func: callable, lifetime: LifeTime):
         super().__init__(service_type, lifetime)
+        if not callable(func):
+            raise TypeError
+
         self._func = func
         self._params_type_map = None
 
@@ -75,6 +83,8 @@ class CallableDescriptor(Descriptor):
 class InstanceDescriptor(Descriptor):
     def __init__(self, service_type: type, instance):
         super().__init__(service_type, LifeTime.singleton)
+        if not isinstance(instance, service_type):
+            raise TypeError('obj is not a {}'.format(service_type))
         self._instance = instance
 
     def make_callsite(self, service_provider, depend_chain):
@@ -92,6 +102,8 @@ class ServiceProviderDescriptor(Descriptor):
 class MapDescriptor(Descriptor):
     def __init__(self, service_type: type, target_service_type: type):
         super().__init__(service_type, LifeTime.transient)
+        if not isinstance(target_service_type, type):
+            raise TypeError('target_service_type must be a type')
         self._target = target_service_type
 
     def make_callsite(self, service_provider, depend_chain):
