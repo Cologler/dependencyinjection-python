@@ -38,16 +38,15 @@ class Descriptor(IDescriptor):
 
 
 class CallableDescriptor(Descriptor):
-    def __init__(self, service_type: type, func: callable, lifetime: LifeTime):
+    def __init__(self, service_type: type, func: callable, lifetime: LifeTime, **options):
         super().__init__(service_type, lifetime)
+        if service_type is ParameterTypeResolver:
+            raise RuntimeError(f'service_type cannot be {ParameterTypeResolver}.')
         if not callable(func):
             raise TypeError
 
         self._func = func
-        self._params_type_map = None
-
-        if service_type is ParameterTypeResolver:
-            raise RuntimeError(f'service_type cannot be {ParameterTypeResolver}.')
+        self._options = options
 
     def make_callsite(self, service_provider, depend_chain):
         param_callsites = {}
@@ -77,7 +76,7 @@ class CallableDescriptor(Descriptor):
                         callsite = InstanceCallSite(None, param.default)
                 param_callsites[param.name] = callsite
 
-        return CallableCallSite(self, self._func, param_callsites)
+        return CallableCallSite(self, self._func, param_callsites, self._options)
 
 
 class InstanceDescriptor(Descriptor):

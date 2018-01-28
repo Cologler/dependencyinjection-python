@@ -11,8 +11,9 @@ import typing
 from .common import IDescriptor, LifeTime
 
 class BaseCallSite:
-    def __init__(self, descriptor):
+    def __init__(self, descriptor, options: dict=None):
         self._descriptor = descriptor
+        self._options = options if options is not None else {}
 
     @property
     def descriptor(self):
@@ -21,6 +22,10 @@ class BaseCallSite:
     @abstractmethod
     def get(self, service_provider):
         raise NotImplementedError
+
+    @property
+    def options(self):
+        return self._options
 
 
 class LifeTimeCallSite(BaseCallSite):
@@ -34,7 +39,7 @@ class LifeTimeCallSite(BaseCallSite):
         with provider._lock:
             if descriptor not in provider._cache_list:
                 obj = self._from_callsite(provider)
-                if obj is not None and hasattr(obj, '__enter__') and hasattr(obj, '__exit__'):
+                if self._base_callsite.options.get('auto_exit'):
                     provider._exit_stack.enter_context(obj)
                 provider._cache_list[descriptor] = obj
             return provider._cache_list[descriptor]
@@ -98,8 +103,8 @@ class ListedCallSite(NoLifeTimeCallSite):
 
 
 class CallableCallSite(BaseCallSite):
-    def __init__(self, descriptor, func, param_callsites: typing.Dict[str, BaseCallSite]):
-        super().__init__(descriptor)
+    def __init__(self, descriptor, func, param_callsites: typing.Dict[str, BaseCallSite], options: dict):
+        super().__init__(descriptor, options)
         self._func = func
         self._param_callsites = param_callsites
 

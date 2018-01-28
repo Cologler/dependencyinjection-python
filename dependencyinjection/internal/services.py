@@ -37,13 +37,20 @@ class Services:
         self._services.append(descriptor)
         return self
 
-    def add(self, service_type: type, obj: (callable, type), lifetime: LifeTime):
-        ''' register a singleton type. '''
-        return self._add_descriptor(CallableDescriptor(service_type, obj, lifetime))
+    def add(self, service_type: type, obj: (callable, type), lifetime: LifeTime, *,
+            auto_exit=False):
+        '''
+        add a factory for service_type with lifetime.
+
+        if `auto_exit` is `True`, auto call `obj.__exit__` when scoped provider call `__exit__`.
+        '''
+        return self._add_descriptor(CallableDescriptor(service_type, obj, lifetime, auto_exit=auto_exit))
 
     @overload
     def instance(self, service_type: type, obj: object):
-        ''' register a singleton instance to service type. '''
+        '''
+        register a singleton instance with service type.
+        '''
         return self._add_descriptor(InstanceDescriptor(service_type, obj))
 
     @instance.add
@@ -51,37 +58,39 @@ class Services:
         return self.instance(type(obj), obj)
 
     @overload
-    def singleton(self, service_type: type, obj: callable):
-        ''' register a singleton type. '''
-        return self.add(service_type, obj, LifeTime.singleton)
+    def singleton(self, service_type: type, obj: callable, **kwargs):
+        '''
+        register a singleton type.
+        '''
+        return self.add(service_type, obj, LifeTime.singleton, **kwargs)
 
     @singleton.add
-    def singleton(self, service_type: type):
-        return self.singleton(service_type, service_type)
+    def singleton(self, service_type: type, **kwargs):
+        return self.singleton(service_type, service_type, **kwargs)
 
     @overload
-    def scoped(self, service_type: type, obj: (callable, type)):
+    def scoped(self, service_type: type, obj: (callable, type), **kwargs):
         ''' register a scoped type. '''
-        return self.add(service_type, obj, LifeTime.scoped)
+        return self.add(service_type, obj, LifeTime.scoped, **kwargs)
 
     @scoped.add
-    def scoped(self, service_type: type):
-        return self.scoped(service_type, service_type)
+    def scoped(self, service_type: type, **kwargs):
+        return self.scoped(service_type, service_type, **kwargs)
 
     @overload
-    def transient(self, service_type: type, obj: (callable, type)):
+    def transient(self, service_type: type, obj: (callable, type), **kwargs):
         ''' register a transient type. '''
-        return self.add(service_type, obj, LifeTime.transient)
+        return self.add(service_type, obj, LifeTime.transient, **kwargs)
 
     @transient.add
-    def transient(self, service_type: type):
-        return self.transient(service_type, service_type)
+    def transient(self, service_type: type, **kwargs):
+        return self.transient(service_type, service_type, **kwargs)
 
     def threadsafety(self):
         '''
         make all `LifeTime.singleton` service thread safety.
         '''
-        return self.scoped(ILock, ThreadLock)
+        return self.transient(ILock, ThreadLock)
 
     def map(self, service_type: type, target_service_type: type):
         '''

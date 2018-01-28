@@ -54,34 +54,54 @@ class Test(unittest.TestCase):
             self.assertTrue(provider.get(A) is provider1.get(A))
             self.assertTrue(provider.get(B) is provider1.get(B))
 
-    def test_scoped(self):
-        tester = self
+    def test_singleton_dep_is_root(self):
         class A:
             pass
 
         class B:
             def __init__(self, a: A):
-                tester.assertIsNotNone(a)
-                tester.assertTrue(isinstance(a, A))
-                self.exited = False
+                self.a = a
+
+        service = di.Services()
+        service.scoped(A, A)
+        service.singleton(B, B)
+        root_provider = service.build()
+
+        with root_provider.scope() as child_provider:
+            self.assertIs(child_provider.get(B).a, root_provider.get(A))
+
+    def test_scoped(self):
+        tester = self
+
+        class A:
+            pass
+
+        class B:
+            def __init__(self, a: A):
+                self.a = a
 
         service = di.Services()
         service.scoped(A, A)
         service.scoped(B, B)
         root_provider = service.build()
 
+        def scoped_item_is(service_provider):
+            self.assertIs(service_provider.get(A), service_provider.get(A))
+            self.assertIs(service_provider.get(B), service_provider.get(B))
+            self.assertIs(service_provider.get(B).a, service_provider.get(A))
+
+        def scoped_item_is_not(provider_1, provider_2):
+            self.assertIsNot(provider_1.get(A), provider_2.get(A))
+            self.assertIsNot(provider_1.get(B), provider_2.get(B))
+
         with root_provider.scope() as provider1:
             with provider1.scope() as provider2:
-                self.assertTrue(root_provider.get(A) is root_provider.get(A))
-                self.assertTrue(root_provider.get(B) is root_provider.get(B))
-                self.assertTrue(provider1.get(A) is provider1.get(A))
-                self.assertTrue(provider1.get(B) is provider1.get(B))
-                self.assertTrue(provider2.get(A) is provider2.get(A))
-                self.assertTrue(provider2.get(B) is provider2.get(B))
-                self.assertFalse(root_provider.get(A) is provider1.get(A))
-                self.assertFalse(provider1.get(A) is provider2.get(A))
-                self.assertFalse(root_provider.get(B) is provider1.get(B))
-                self.assertFalse(provider1.get(B) is provider2.get(B))
+                scoped_item_is(root_provider)
+                scoped_item_is(provider1)
+                scoped_item_is(provider2)
+                scoped_item_is_not(root_provider, provider1)
+                scoped_item_is_not(root_provider, provider2)
+                scoped_item_is_not(provider1, provider2)
 
     def test_transient(self):
         tester = self
@@ -118,7 +138,7 @@ class Test(unittest.TestCase):
 
         service = di.Services()
         service.scoped(A, A)
-        service.scoped(B, B)
+        service.scoped(B, B, auto_exit=True)
         root_provider = service.build()
         with root_provider as root_provider:
             broot = root_provider.get(B)
@@ -141,6 +161,7 @@ class Test(unittest.TestCase):
 
         class B:
             def __init__(self, a: A):
+                self.a = a
                 tester.assertIsNotNone(a)
                 tester.assertTrue(isinstance(a, A2))
 
@@ -149,14 +170,29 @@ class Test(unittest.TestCase):
         service.singleton(A, A2)
         service.singleton(B, B)
         provider = service.build()
-        # ref equals
-        self.assertTrue(provider.get(A) is provider.get(A))
-        self.assertTrue(provider.get(B) is provider.get(B))
+
+        # B().a should be last singleton(A, ?) => A2
+        self.assertIsInstance(provider.get(B).a, A2)
+
+        # list of B
         import typing
-        items = provider.get(typing.List[A])
-        self.assertEqual(2, len(items))
-        self.assertTrue(isinstance(items[0], A1))
-        self.assertTrue(isinstance(items[1], A2))
+        itemsB = provider.get(typing.List[B])
+        self.assertEqual(1, len(itemsB))
+        self.assertIs(itemsB[0], provider.get(B))
+
+        # list of A
+
+        items1 = provider.get(typing.List[A])
+        self.assertEqual(2, len(items1))
+        self.assertIsInstance(items1[0], A1)
+        self.assertIsInstance(items1[1], A2)
+
+        items2 = provider.get(typing.List[A])
+        self.assertEqual(2, len(items2))
+        self.assertIsInstance(items2[0], A1)
+        self.assertIsInstance(items2[1], A2)
+
+        self.assertIsNot(items1, items2)
 
     def test_get_none(self):
         service = di.Services()
