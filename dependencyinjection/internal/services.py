@@ -10,7 +10,7 @@ import typing
 from overload import overload
 from .common import (
     LifeTime,
-    IServiceProvider, IScopedFactory, ILock,
+    IServiceProvider, IScopedFactory, ILock, ICallSiteResolver,
     FAKE_LOCK
 )
 from .scopedfactory import ScopedFactory
@@ -86,12 +86,6 @@ class Services:
     def transient(self, service_type: type, **kwargs):
         return self.transient(service_type, service_type, **kwargs)
 
-    def threadsafety(self):
-        '''
-        make all `LifeTime.singleton` service thread safety.
-        '''
-        return self.transient(ILock, ThreadLock)
-
     def map(self, service_type: type, target_service_type: type):
         '''
         map a service type to another service type.
@@ -120,6 +114,22 @@ class Services:
         self._services.append(ServiceProviderDescriptor())
         service_map = ServicesMap(self._services)
         return ServiceProvider(service_map=service_map)
+
+    # ========================== configure ==========================
+
+    def threadsafety(self):
+        '''
+        make all `LifeTime.singleton` service thread safety.
+        '''
+        return self.transient(ILock, ThreadLock)
+
+    def auto_resolve_concrete_types(self):
+        '''
+        enable auto resolve concrete types feature.
+        '''
+        from .callsite_resolvers import CallSiteResolver
+        self.singleton(ICallSiteResolver, CallSiteResolver)
+        return self
 
 
 class Decorator:

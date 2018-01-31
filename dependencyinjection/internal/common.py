@@ -80,3 +80,11 @@ class FakeLock(ILock):
         pass
 
 FAKE_LOCK = FakeLock()
+
+
+class ICallSiteResolver:
+    ''' resolve callsite from service_type.'''
+
+    @abstractmethod
+    def resolve(self, service_type: type, depend_chain):
+        raise NotImplementedError

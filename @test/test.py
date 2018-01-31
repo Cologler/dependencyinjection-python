@@ -16,6 +16,8 @@ sys.path.insert(0, '..')
 import dependencyinjection as di
 
 class Test(unittest.TestCase):
+    # pylint: disable=R0903,C0111
+
     def test_instance(self):
         class A:
             pass
@@ -155,9 +157,12 @@ class Test(unittest.TestCase):
 
     def test_multi_service(self):
         tester = self
-        class A: pass
-        class A1(A): pass
-        class A2(A): pass
+        class A:
+            pass
+        class A1(A):
+            pass
+        class A2(A):
+            pass
 
         class B:
             def __init__(self, a: A):
@@ -247,7 +252,21 @@ class Test(unittest.TestCase):
         # with `map`, so A is C.
         self.assertIs(provider[C], provider[A])
 
+    def test_auto_resolving_concrete_types_not_configured(self):
+        class A:
+            pass
+
+        provider = di.Services().build()
+        self.assertIsNone(provider.get(A))
+
     def test_auto_resolving_concrete_types(self):
+        class A:
+            pass
+
+        provider = di.Services().auto_resolve_concrete_types().build()
+        self.assertIsInstance(provider.get(A), A)
+
+    def test_auto_resolving_concrete_types_complex(self):
         class X1:
             pass
         class X2:
@@ -261,7 +280,7 @@ class Test(unittest.TestCase):
         class C(B):
             pass
 
-        provider = di.Services().scoped(X2).build()
+        provider = di.Services().scoped(X2).auto_resolve_concrete_types().build()
         self.assertIsNot(provider[C], provider[C])
         self.assertIsNot(provider[C].x1, provider[C].x1)
         self.assertIs(provider[C].x2, provider[C].x2)
