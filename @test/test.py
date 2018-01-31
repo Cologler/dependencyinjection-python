@@ -247,6 +247,25 @@ class Test(unittest.TestCase):
         # with `map`, so A is C.
         self.assertIs(provider[C], provider[A])
 
+    def test_auto_resolving_concrete_types(self):
+        class X1:
+            pass
+        class X2:
+            pass
+        class A:
+            pass
+        class B(A):
+            def __init__(self, x1: X1, x2: X2):
+                self.x1 = x1
+                self.x2 = x2
+        class C(B):
+            pass
+
+        provider = di.Services().scoped(X2).build()
+        self.assertIsNot(provider[C], provider[C])
+        self.assertIsNot(provider[C].x1, provider[C].x1)
+        self.assertIs(provider[C].x2, provider[C].x2)
+
 
 def main(argv=None):
     if argv is None:

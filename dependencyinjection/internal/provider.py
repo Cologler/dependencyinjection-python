@@ -9,12 +9,13 @@
 import contextlib
 import typing
 from .common import (
+    LifeTime,
     IServiceProvider,
     IScopedFactory,
     ILock,
     FAKE_LOCK
 )
-from .descriptors import ListedDescriptor, ICallSiteMaker
+from .descriptors import ListedDescriptor, ICallSiteMaker, CallableDescriptor
 from .servicesmap import ServicesMap
 from .checker import CycleChecker
 from .errors import TypeNotFoundError
@@ -88,11 +89,16 @@ class ServiceProvider(IServiceProvider):
             return self.get_callsite(descriptor, depend_chain)
 
         elif getattr(service_type, '__origin__', None) is typing.List and isinstance(service_type.__args__, tuple):
+            # list[?]
             inner_type, = service_type.__args__
             descriptors = self._service_map.getall(inner_type) or []
             return self.get_callsite(ListedDescriptor(descriptors), depend_chain)
 
-        elif required:
+        descriptor = CallableDescriptor.try_create(service_type, service_type, LifeTime.transient)
+        if descriptor:
+            return self.get_callsite(descriptor, depend_chain)
+
+        if required:
             raise TypeNotFoundError(f'cannot get type: {service_type}')
 
         return None

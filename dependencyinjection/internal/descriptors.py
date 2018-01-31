@@ -78,6 +78,15 @@ class CallableDescriptor(Descriptor):
 
         return CallableCallSite(self, self._func, param_callsites, self._options)
 
+    @staticmethod
+    def try_create(service_type: type, func: callable, lifetime: LifeTime, **options):
+        try:
+            inspect.signature(func)
+        except ValueError:
+            return None
+        else:
+            return CallableDescriptor(service_type, func, lifetime, **options)
+
 
 class InstanceDescriptor(Descriptor):
     def __init__(self, service_type: type, instance):
