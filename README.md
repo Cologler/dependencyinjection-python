@@ -1,5 +1,7 @@
 # dependency injection
 
+**try use [anyioc](https://github.com/Cologler/anyioc-python).**
+
 A dependency injection framework for python.
 
 Just like `Microsoft.Extensions.DependencyInjection`.
